@@ -1,26 +1,55 @@
-# AutoResearch Demo: California Housing Regression
+# News Sentiment Predicting Tech Stock Direction
 
-A minimal, CPU-only AutoResearch project for **STAT 390** class demonstration.
-Shows the full agent loop: modify code → evaluate → keep or discard → repeat.
+STAT 390 capstone AutoResearch project. Tests whether daily news-sentiment
+signals about Magnificent-7 tech stocks (AAPL, MSFT, GOOGL, AMZN, NVDA, META,
+TSLA) can predict next-day price direction beyond chance.
 
 ---
 
 ## Problem
 
-Predict California median house values.
-**Metric**: validation RMSE (lower is better).
-**Data**: sklearn built-in California Housing (no download needed).
+- **Task**: binary classification.
+- **Target**: `direction_t1` — 1 if next-day close > today's close, 0 otherwise.
+- **Metric**: validation **macro F1** (higher is better). Accuracy and
+  positive-class recall are logged alongside for diagnostics.
+- **Features (32)**: article counts, unique source counts, word-count-weighted
+  tone scores (overall / positive / negative / polarity), per-day tone stats
+  (mean / stddev / min / max), positive / negative / neutral article counts,
+  activity-reference density, lag-1/2/3 tone / articles / polarity,
+  5-day rolling tone mean, tone momentum, tone volatility, plus price-derived
+  features (daily return, realized 5-day volatility) and an earnings-week
+  calendar flag.
+- **Span**: Jan 2025 through April 13 2026 (~2,233 labelled rows after
+  dropping NaN lag-edges and last-day rows).
+- **Baseline**: logistic regression with no penalty — establishes the
+  first row in `results.tsv`.
+
+## Split (LOCKED in `prepare.py`)
+
+| Split | Date window                    | Approx. rows | Purpose |
+|-------|--------------------------------|--------------|-----------------------------------|
+| Train | 2025-01-01 → 2025-12-31        | ~1,750       | Fit models.                       |
+| Val   | 2026-01-01 → 2026-02-14        | ~210         | Iterate / select during search.   |
+| Test  | 2026-02-15 → 2026-04-13        | ~270         | LOCKED. Touched once at the end.  |
+
+`load_data()` returns train + val only. `load_test()` is gated behind a
+`RuntimeWarning` and should be called **exactly once**, at the final
+evaluation after the search phase ends.
 
 ## Project Structure
 
 ```
-demo_autoresearch/
-├── prepare.py      # FROZEN — data loading, evaluation metric, plotting
-├── model.py        # EDITABLE — agent modifies only this file
-├── run.py          # Run a single experiment and log result
-├── program.md      # Agent instructions (the agent reads this)
-├── results.tsv     # Experiment log (auto-generated)
-└── performance.png # Performance plot (auto-generated)
+m7-news-sentiment/
+├── dataset.csv        # Frozen dataset (from GDELT + yfinance)
+├── data_acquisition/  # FROZEN - Raw pull scripts + data acquisition (archive)
+├── prepare.py         # FROZEN — data loading, evaluation, plotting
+├── model.py           # EDITABLE — the only file the agent modifies
+├── run.py             # FROZEN — runs one experiment, logs result
+├── demo.py            # Standalone: runs 8 demo iterations end-to-end
+├── program.md         # Agent instructions (rules + workflow + ideas)
+├── README.md          # This file
+├── results.tsv        # Experiment log (auto-generated, append-only)
+└── performance.png    # Search trajectory plot (auto-generated)
 ```
 
 **Key rule**: the agent may only modify `model.py`. Everything else is frozen.
@@ -31,7 +60,7 @@ demo_autoresearch/
 
 ### 1. Install an AI coding agent (CLI)
 
-You need a CLI coding agent that can read files, edit files, and run shell commands.
+You need a CLI coding agent that can read files, edit files, and run shell commands. 
 Two recommended options — **neither requires an API key**.
 
 #### Option A: Claude Code CLI (recommended)
@@ -53,23 +82,20 @@ winget install Anthropic.ClaudeCode
 Then launch:
 
 ```bash
-cd demo_autoresearch
+cd m7-news-sentiment
 claude
 ```
 
 First launch opens a browser for login — **no API key needed**.
-Works with any Claude subscription (Pro $20/mo, Max, or Team).
+Works with any Claude subscription (Pro, Max, or Team).
 
 Docs: https://code.claude.com/docs
 
 #### Option B: OpenAI Codex CLI
 
 ```bash
-# Install
 npm install -g @openai/codex
-
-# Launch
-cd demo_autoresearch
+cd m7-news-sentiment
 codex
 ```
 
@@ -80,50 +106,25 @@ Docs: https://github.com/openai/codex
 
 ### 2. Install Python environment
 
-This project requires **Python 3.10+** with `scikit-learn`, `matplotlib`, and `numpy`.
-
-#### Check if Python is installed
-
-```bash
-python3 --version
-# Should print Python 3.10.x or higher
-# If not installed, see below
-```
-
-#### Install Python (if needed)
+Requires **Python 3.10+** with `scikit-learn`, `pandas`, `numpy`, and
+`matplotlib`.
 
 ```bash
-# macOS
-brew install python@3.12
+# Check version
+python3 --version                # expect 3.10 or higher
 
-# Ubuntu / Debian
-sudo apt update && sudo apt install python3 python3-pip python3-venv
-
-# Windows — download from https://www.python.org/downloads/
-# During install, check "Add Python to PATH"
+# Install Python if needed (choose one)
+pip install scikit-learn pandas numpy matplotlib
+# -or-
+conda install scikit-learn pandas numpy matplotlib
 ```
 
-#### Install dependencies
-
-```bash
-# Option A: with pip (simplest)
-pip install scikit-learn matplotlib numpy
-
-# Option B: with uv (faster, used in the main autoresearch project)
-# Install uv first: curl -LsSf https://astral.sh/uv/install.sh | sh
-uv pip install scikit-learn matplotlib numpy
-
-# Option C: with conda
-conda install scikit-learn matplotlib numpy
-```
-
-#### What gets installed
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| scikit-learn | >= 1.3 | ML models, pipelines, evaluation |
-| matplotlib | >= 3.7 | Performance plotting |
-| numpy | >= 1.24 | Array operations (scikit-learn dependency) |
+| Package      | Version  | Purpose                          |
+|--------------|----------|----------------------------------|
+| scikit-learn | >= 1.3   | Models, pipelines, metrics       |
+| pandas       | >= 2.0   | CSV loading, date filtering      |
+| numpy        | >= 1.24  | Array operations                 |
+| matplotlib   | >= 3.7   | Performance plotting             |
 
 No GPU, no PyTorch, no heavy downloads — everything runs on CPU.
 
@@ -131,17 +132,18 @@ No GPU, no PyTorch, no heavy downloads — everything runs on CPU.
 
 ```bash
 # Quick check: all imports work
-python3 -c "import sklearn, matplotlib, numpy; print('All good')"
+python3 -c "import sklearn, pandas, numpy, matplotlib; print('All good')"
 
 # Full check: run one experiment
-python3 run.py "test run"
+python3 run.py "sanity run" --baseline
 # Expected output:
-#   Data: 16512 train, 4128 val, 8 features
-#   val_rmse: 0.745581
-#   val_r2:   0.575788
-#   Result logged to results.tsv
+#   Data: ~1750 train, ~210 val, 32 features
+#   val_f1_macro: 0.4XXX
+#   val_accuracy: 0.XXXX
+#   val_recall:   0.XXXX
+#   Result logged to results.tsv (status=baseline)
 
-# Clean up test result
+# Clean up the sanity result if you want a fresh log
 rm -f results.tsv
 ```
 
@@ -153,45 +155,49 @@ rm -f results.tsv
 
 ```
 Read program.md for your instructions, then read model.py.
-Run `python run.py "baseline"` to establish the baseline RMSE.
+Run `python run.py "baseline" --baseline` to establish the baseline macro F1.
 Then enter the AutoResearch loop:
 
-1. Propose one modification to model.py (e.g., different estimator,
-   feature engineering, hyperparameter change).
+1. Propose one modification to model.py (e.g., different classifier,
+   regularization, feature engineering, hyperparameter change).
 2. Edit model.py with your change.
 3. Run: python run.py "<short description of what you changed>"
-4. Compare the new val_rmse to the current best.
-   - If improved: KEEP the change, note the new best.
-   - If worse: REVERT model.py to the previous version.
+4. Compare the new val_f1_macro to the current best (higher = better).
+   - If improved by at least 0.02: KEEP the change, note the new best.
+   - Otherwise:                    REVERT model.py to the previous version.
 5. Repeat from step 1. Try at least 6 different ideas.
 
-After all iterations, run `python prepare.py` to generate performance.png.
+Do NOT call load_test() — the test set is reserved for final evaluation.
+
+After all iterations, run `python prepare.py` to regenerate performance.png.
 Print a summary table of all experiments and which were kept vs discarded.
 ```
 
-### More specific prompt (if you want to control the search)
+### More specific prompt (if you want to direct the search)
 
 ```
 You are an AutoResearch agent. Read program.md for rules.
 
-Your job: minimize val_rmse on California Housing by modifying model.py.
+Your job: maximize val_f1_macro on News-Sentiment Tech-Stock Direction
+by modifying model.py only.
 
 Constraints:
 - model.py must define build_model() returning an sklearn estimator
 - Do NOT modify prepare.py or run.py
-- Each experiment must finish in < 60 seconds
+- Do NOT call load_test()
+- Each experiment must finish in < 60 seconds on CPU
 
 Search strategy:
-1. Start with baseline (LinearRegression)
-2. Try regularized linear models (Ridge, Lasso, ElasticNet)
-3. Try feature engineering (PolynomialFeatures, interactions)
+1. Start with baseline (LogisticRegression, no penalty, StandardScaler)
+2. Try regularized linear models: L2, L1, ElasticNet, plus class_weight='balanced'
+3. Try feature engineering (PolynomialFeatures interaction_only, RobustScaler)
 4. Try tree ensembles (RandomForest, GradientBoosting, HistGradientBoosting)
 5. Try hyperparameter tuning on the best model so far
 
 For each experiment:
 - Run: python run.py "<description>"
-- If val_rmse improved → keep
-- If val_rmse worsened → revert model.py to previous version
+- If val_f1_macro improved ≥ 0.02 → keep
+- If val_f1_macro did not improve ≥ 0.02 → revert model.py to previous version
 - Log your reasoning for each decision
 
 After finishing, run: python prepare.py
@@ -199,150 +205,100 @@ After finishing, run: python prepare.py
 
 ---
 
-## Example Agent Loop (actually executed)
+## Example Demo Run
 
-Below is a real agent session. The agent modified `model.py` 7 times,
-kept 5 improvements, discarded 1 regression.
+A pre-scripted 8-iteration example is included as `demo.py`. It runs the full
+search non-interactively so you can see the agent loop's output and trajectory
+before handing control to a real agent:
 
-### Iteration 0 — Baseline
-
-```python
-# model.py
-Pipeline([("scaler", StandardScaler()), ("model", LinearRegression())])
+```bash
+rm -f results.tsv performance.png
+python demo.py
 ```
 
-```
-$ python run.py "baseline: LinearRegression + StandardScaler"
-val_rmse: 0.745581   val_r2: 0.5758
-```
+It tries, in order:
 
-**BASELINE established**: RMSE = 0.7456
+| #  | Model                                     | Role                          |
+|----|-------------------------------------------|-------------------------------|
+| 1  | LogReg, no penalty                        | baseline                      |
+| 2  | LogReg, L2 (C=1.0)                        | regularization sweep          |
+| 3  | LogReg, L1 (C=0.5)                        | sparse feature selection      |
+| 4  | PolyFeatures(2, interaction) + LogReg L2  | feature engineering           |
+| 5  | PolyFeatures(3, full) + LogReg            | deliberate overshoot (discard)|
+| 6  | RandomForest(n=200)                       | non-linear tree baseline      |
+| 7  | GradientBoosting(n=200, depth=3)          | boosted trees                 |
+| 8  | HistGBT(iter=300, tuned)                  | modern GBM                    |
 
----
-
-### Iteration 1 — Ridge regression
-
-Changed `LinearRegression()` → `Ridge(alpha=1.0)`.
-
-```
-$ python run.py "Ridge(alpha=1.0)"
-val_rmse: 0.745557   val_r2: 0.5758
-```
-
-**KEEP** (marginal improvement). Best = 0.7456
-
----
-
-### Iteration 2 — Polynomial feature interactions
-
-Added `PolynomialFeatures(degree=2, interaction_only=True)` before Ridge.
-
-```
-$ python run.py "PolyFeatures(2, interaction) + Ridge"
-val_rmse: 0.703280   val_r2: 0.6226
-```
-
-**KEEP** (improved 5.7%). Best = 0.7033
-
----
-
-### Iteration 3 — Degree-3 polynomials (overshoot)
-
-Changed to `PolynomialFeatures(degree=3)` — full polynomial expansion.
-
-```
-$ python run.py "PolyFeatures(3, full) + Ridge -- risky"
-val_rmse: 4.880809   val_r2: -17.18
-```
-
-**DISCARD** (exploded). Reverted model.py back to iteration 2.
-
----
-
-### Iteration 4 — Random Forest
-
-Replaced entire pipeline with `RandomForestRegressor(n_estimators=100)`.
-
-```
-$ python run.py "RandomForest(n=100)"
-val_rmse: 0.505340   val_r2: 0.8051
-```
-
-**KEEP** (improved 28%). Best = 0.5053
-
----
-
-### Iteration 5 — Gradient Boosting
-
-Switched to `GradientBoostingRegressor(n_estimators=200, max_depth=5)`.
-
-```
-$ python run.py "GradientBoosting(n=200, depth=5, lr=0.1)"
-val_rmse: 0.473611   val_r2: 0.8288
-```
-
-**KEEP** (improved 6.3%). Best = 0.4736
-
----
-
-### Iteration 6 — HistGradientBoosting (tuned)
-
-Switched to `HistGradientBoostingRegressor(max_iter=300, max_depth=8, lr=0.08)`.
-
-```
-$ python run.py "HistGBT(iter=300, depth=8, lr=0.08)"
-val_rmse: 0.447989   val_r2: 0.8468
-```
-
-**KEEP** (improved 5.4%). Best = 0.4480
-
----
-
-### Summary
-
-| # | Model | RMSE | R² | Decision |
-|---|-------|------|----|----------|
-| 0 | LinearRegression (baseline) | 0.7456 | 0.576 | baseline |
-| 1 | Ridge(alpha=1.0) | 0.7456 | 0.576 | keep |
-| 2 | PolyFeatures(2) + Ridge | 0.7033 | 0.623 | keep |
-| 3 | PolyFeatures(3) + Ridge | 4.8808 | -17.2 | **discard** |
-| 4 | RandomForest(n=100) | 0.5053 | 0.805 | keep |
-| 5 | GradientBoosting(n=200) | 0.4736 | 0.829 | keep |
-| 6 | HistGBT(n=300, tuned) | **0.4480** | **0.847** | keep |
-
-**Total improvement: 0.7456 → 0.4480 (40% reduction in RMSE)**
+After it finishes, open `performance.png` to see the trajectory.
 
 ---
 
 ## Plotting Results
 
-After running experiments:
+Any time after runs have been logged:
 
 ```bash
 python prepare.py
-# Generates performance.png from results.tsv
+# Regenerates performance.png from results.tsv
 ```
 
-This produces a two-panel chart:
-- **Top**: validation RMSE over iterations (green = keep, red = discard, blue = baseline)
-- **Bottom**: validation R² over iterations
-- **Green line**: best-so-far envelope
+The plot has two panels:
+
+- **Top**: validation **macro F1** over experiments — the primary metric.
+- **Bottom**: validation **accuracy** over experiments.
+
+Points are color-coded by status: blue = baseline, green = keep, red = discard.
+A green best-so-far envelope traces the running maximum. Dashed grey line at
+0.5 marks approximate chance level for both metrics.
 
 ---
 
-## Adapting This for Your Own Project
+## Final Evaluation on the Locked Test Set
 
-To use this structure for a different task:
+Once the search phase is complete and `model.py` is pinned to the best-kept
+version, do exactly one pass on the test set. Create `final_eval.py`:
 
-1. **Replace `prepare.py`** with your own data loading, evaluation metric, and plotting.
-   Keep it frozen — the agent must not touch it.
+```python
+import warnings
+import numpy as np
+from model import build_model
+from prepare import load_data, load_test, evaluate
 
+X_train, y_train, X_val, y_val, _ = load_data()
+
+# After the search, selection is done — combine train + val for the final fit.
+X_all = np.vstack([X_train, X_val])
+y_all = np.concatenate([y_train, y_val])
+
+model = build_model()
+model.fit(X_all, y_all)
+
+# Expect a RuntimeWarning from load_test — this is the only legitimate call.
+X_test, y_test = load_test()
+f1, acc, recall = evaluate(model, X_test, y_test)
+print(f"FINAL TEST  f1_macro={f1:.4f}  accuracy={acc:.4f}  recall={recall:.4f}")
+```
+
+The test-set number goes in the project report. It is **not** appended to
+`results.tsv` — `results.tsv` is the search trajectory, and the test score
+is a single post-search evaluation. If you ever re-run `final_eval.py` after
+seeing its result and then go back to tweak `model.py`, you have compromised
+the holdout, and the result is no longer trustworthy.
+
+---
+
+## Adapting This Structure for Another Project
+
+The template that produced this repo is project-agnostic. To port it:
+
+1. **Replace `prepare.py`** with your own data loading, split, evaluation
+   metric, and plotting. Keep it frozen — the agent must not touch it.
 2. **Replace `model.py`** with whatever the agent should modify
    (model definition, hyperparameters, feature engineering, etc.).
+3. **Update `program.md`** with your specific rules, constraints, and
+   search ideas.
+4. **Update `run.py`** if your training loop or logging signature differs.
 
-3. **Update `program.md`** with your specific rules, constraints, and search ideas.
-
-4. **Update `run.py`** if your training loop is different
-   (e.g., PyTorch instead of sklearn).
-
-The key principle: **separate what changes (model.py) from what measures (prepare.py)**.
+The key principle: **separate what changes (`model.py`) from what measures
+(`prepare.py`)**. The agent operates on the first; the evaluator lives
+in the second.

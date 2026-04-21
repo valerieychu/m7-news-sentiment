@@ -1,26 +1,26 @@
 """
 Demo: simulate an AutoResearch agent loop with 8 iterations.
 
-This script demonstrates the full keep/discard workflow:
+This script demonstrates the full keep/discard workflow end-to-end on your
+own project:
   1. Run baseline model
   2. Try modifications one by one
-  3. Keep improvements, discard regressions
+  3. Keep improvements, discard regressions  (higher macro F1 = better)
   4. Plot the trajectory
 
 Usage: python demo.py
 """
 import os
 import time
-import numpy as np
-from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+
+from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import (
-    RandomForestRegressor,
-    GradientBoostingRegressor,
-    HistGradientBoostingRegressor,
+    RandomForestClassifier,
+    GradientBoostingClassifier,
+    HistGradientBoostingClassifier,
 )
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
-from sklearn.compose import TransformedTargetRegressor
 
 from prepare import load_data, evaluate, log_result, plot_results, RESULTS_FILE
 
@@ -29,69 +29,73 @@ from prepare import load_data, evaluate, log_result, plot_results, RESULTS_FILE
 ITERATIONS = [
     {
         "id": 1,
-        "description": "baseline: LinearRegression",
+        "description": "baseline: LogReg (no penalty)",
         "model": Pipeline([
             ("scaler", StandardScaler()),
-            ("model", LinearRegression()),
+            ("model",  LogisticRegression(penalty=None, max_iter=1000)),
         ]),
     },
     {
         "id": 2,
-        "description": "Ridge(alpha=1.0)",
+        "description": "LogReg L2 (C=1.0)",
         "model": Pipeline([
             ("scaler", StandardScaler()),
-            ("model", Ridge(alpha=1.0)),
+            ("model",  LogisticRegression(penalty="l2", C=1.0, max_iter=1000)),
         ]),
     },
     {
         "id": 3,
-        "description": "Lasso(alpha=0.01)",
+        "description": "LogReg L1 sparse (C=0.5)",
         "model": Pipeline([
             ("scaler", StandardScaler()),
-            ("model", Lasso(alpha=0.01)),
+            ("model",  LogisticRegression(
+                penalty="l1", C=0.5, solver="liblinear", max_iter=1000,
+            )),
         ]),
     },
     {
         "id": 4,
-        "description": "PolyFeatures(2) + Ridge",
+        "description": "PolyFeatures(2, inter) + LogReg L2",
         "model": Pipeline([
             ("scaler", StandardScaler()),
-            ("poly", PolynomialFeatures(degree=2, interaction_only=True)),
-            ("model", Ridge(alpha=1.0)),
+            ("poly",   PolynomialFeatures(degree=2, interaction_only=True)),
+            ("model",  LogisticRegression(penalty="l2", C=1.0, max_iter=2000)),
         ]),
     },
     {
         "id": 5,
-        "description": "PolyFeatures(3) + Ridge -- overshoot",
+        "description": "PolyFeatures(3, full) + LogReg -- overshoot",
         "model": Pipeline([
             ("scaler", StandardScaler()),
-            ("poly", PolynomialFeatures(degree=3)),
-            ("model", Ridge(alpha=0.1)),
+            ("poly",   PolynomialFeatures(degree=3)),
+            ("model",  LogisticRegression(penalty="l2", C=0.1, max_iter=5000)),
         ]),
     },
     {
         "id": 6,
-        "description": "RandomForest(n=100)",
+        "description": "RandomForest(n=200)",
         "model": Pipeline([
-            ("model", RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)),
+            ("model",  RandomForestClassifier(
+                n_estimators=200, random_state=42, n_jobs=-1,
+            )),
         ]),
     },
     {
         "id": 7,
-        "description": "GradientBoosting(n=200)",
+        "description": "GradientBoosting(n=200, depth=3)",
         "model": Pipeline([
-            ("model", GradientBoostingRegressor(
-                n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42
+            ("model",  GradientBoostingClassifier(
+                n_estimators=200, max_depth=3, learning_rate=0.05, random_state=42,
             )),
         ]),
     },
     {
         "id": 8,
-        "description": "HistGBT(n=300, tuned)",
+        "description": "HistGBT(iter=300, tuned)",
         "model": Pipeline([
-            ("model", HistGradientBoostingRegressor(
-                max_iter=300, max_depth=8, learning_rate=0.08,
-                min_samples_leaf=20, random_state=42
+            ("model",  HistGradientBoostingClassifier(
+                max_iter=300, max_depth=6, learning_rate=0.05,
+                min_samples_leaf=20, random_state=42,
             )),
         ]),
     },
@@ -104,20 +108,23 @@ def main():
         os.remove(RESULTS_FILE)
         print(f"Cleared previous {RESULTS_FILE}\n")
 
-    # Load data once
+    # Load data once (train + val only — test set is not touched here)
     X_train, y_train, X_val, y_val, feature_names = load_data()
-    print(f"Dataset: California Housing")
+    print("Dataset: News Sentiment Predicting Tech Stock Direction")
     print(f"  Train: {X_train.shape[0]} samples, {X_train.shape[1]} features")
     print(f"  Val:   {X_val.shape[0]} samples")
-    print(f"  Features: {list(feature_names)}")
-    print(f"{'=' * 70}\n")
+    print(f"  Train class balance: up={y_train.mean():.4f}  "
+          f"down={1 - y_train.mean():.4f}")
+    print(f"  Val   class balance: up={y_val.mean():.4f}  "
+          f"down={1 - y_val.mean():.4f}")
+    print("=" * 70 + "\n")
 
-    best_rmse = float("inf")
+    best_f1 = -float("inf")  # higher is better (opposite of housing's RMSE)
 
     for it in ITERATIONS:
         exp_id = it["id"]
-        desc = it["description"]
-        model = it["model"]
+        desc   = it["description"]
+        model  = it["model"]
 
         print(f"── Experiment {exp_id}: {desc}")
 
@@ -126,36 +133,38 @@ def main():
         model.fit(X_train, y_train)
         train_time = time.time() - t0
 
-        # Evaluate
-        val_rmse, val_r2 = evaluate(model, X_val, y_val)
+        # Evaluate on val
+        val_f1, val_acc, val_recall = evaluate(model, X_val, y_val)
 
-        # Keep / discard decision
+        # Keep / discard decision — higher macro F1 is better
         if exp_id == 1:
             status = "baseline"
-            best_rmse = val_rmse
+            best_f1 = val_f1
             decision_msg = "BASELINE established"
-        elif val_rmse < best_rmse:
+        elif val_f1 > best_f1:
             status = "keep"
-            improvement = (best_rmse - val_rmse) / best_rmse * 100
+            improvement = (val_f1 - best_f1) / max(abs(best_f1), 1e-9) * 100
             decision_msg = f"KEEP  (improved {improvement:.1f}% over best)"
-            best_rmse = val_rmse
+            best_f1 = val_f1
         else:
             status = "discard"
-            regression = (val_rmse - best_rmse) / best_rmse * 100
+            regression = (best_f1 - val_f1) / max(abs(best_f1), 1e-9) * 100
             decision_msg = f"DISCARD (regressed {regression:.1f}% vs best)"
 
         # Log
-        log_result(f"exp-{exp_id:03d}", val_rmse, val_r2, status, desc)
+        log_result(f"exp-{exp_id:03d}", val_f1, val_acc, val_recall,
+                   train_time, status, desc)
 
         # Print
-        print(f"   RMSE:  {val_rmse:.6f}  |  R²: {val_r2:.4f}  |  Time: {train_time:.2f}s")
+        print(f"   F1_macro: {val_f1:.4f}  |  Acc: {val_acc:.4f}  |  "
+              f"Recall: {val_recall:.4f}  |  Time: {train_time:.2f}s")
         print(f"   >>> {decision_msg}")
         print()
 
     # Summary
-    print(f"{'=' * 70}")
-    print(f"Best RMSE achieved: {best_rmse:.6f}")
-    print(f"Results saved to:   {RESULTS_FILE}")
+    print("=" * 70)
+    print(f"Best macro F1 achieved: {best_f1:.4f}")
+    print(f"Results saved to:       {RESULTS_FILE}")
     print()
 
     # Plot
