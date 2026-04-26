@@ -54,16 +54,22 @@ VAL_END     = pd.Timestamp("2026-02-14")   # inclusive  (mid-Feb boundary)
 TEST_START  = pd.Timestamp("2026-02-15")   # inclusive
 TEST_END    = pd.Timestamp("2026-04-14")   # inclusive  (dataset actually ends 2026-04-13)
 
-# Columns that must never be used as predictors.
+# Columns that must never enter the model as raw values.
 #   target              : direction_t1
 #   future-leaking      : direction_t2, direction_t3, return_t1
 #   identifiers         : date, ticker
+# NOTE: `ticker` is dropped as a raw string, but re-introduced as 7 one-hot
+# indicator columns (ticker_AAPL ... ticker_TSLA) — see _to_arrays().
 FORBIDDEN_COLS = [
     "direction_t1",
     "direction_t2", "direction_t3",
     "return_t1",
     "date", "ticker",
 ]
+
+# Magnificent-7 tickers, in a fixed order so one-hot columns are identical
+# across train / val / test even if a split happens to omit a ticker.
+TICKERS = ("AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA")
 
 
 # ── Internal helpers ───────────────────────────────────────
