@@ -1,0 +1,9 @@
+experiment_id,factor_varied,change_from_baseline,val_f1_macro,val_accuracy,val_recall_pos,f1_class_down,f1_class_up,runtime_sec,status
+E1_baseline,—,Baseline anchor,0.5067,0.5143,0.7204,0.4457,0.5678,0.015,baseline
+E2_class_weight,Class weight,class_weight='balanced' (else baseline),0.5047,0.5048,0.5591,0.5094,0.5,0.013,discard
+E3_l2_reg,Regularization,L2 penalty (C=0.1) + balanced,0.5286,0.5286,0.6022,0.5263,0.5308,0.006,keep
+E4_robust_scaler,Scaler,RobustScaler instead of StandardScaler (+ balanced),0.5,0.5,0.5591,0.5024,0.4976,0.034,discard
+E5_poly_features,Feature engineering,"PolynomialFeatures(deg=2, interaction_only) (+ balanced)",0.4853,0.4857,0.5161,0.5,0.4706,4.028,discard
+E6_random_forest,Model family,"RandomForest (n=300, depth=6, balanced)",0.5166,0.519,0.5054,0.5511,0.4821,0.576,discard
+E7_hist_gbt,Model family,"HistGradientBoosting (iter=300, depth=4, lr=0.05)",0.5285,0.5286,0.5806,0.5352,0.5217,0.229,keep
+E8_extra_trees,Model family,"ExtraTrees (n=300, depth=6, balanced) — current best",0.5445,0.5571,0.4409,0.6204,0.4686,0.331,keep

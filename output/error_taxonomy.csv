@@ -1,0 +1,6 @@
+bucket,n_errors,avg_confidence,pct_of_errors
+B6_Ambiguous_low_confidence,29,0.511,33.3
+B2_Earnings_week,28,0.548,32.2
+B1_TSLA_specific,18,0.524,20.7
+B3_Low_news_day,6,0.544,6.9
+B4_High_volatility,6,0.514,6.9
