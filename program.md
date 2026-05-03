@@ -3,7 +3,7 @@
 ## Objective
 
 Maximize **validation macro F1** on the binary-classification task:
-given 39 predictors derived from GDELT news sentiment and yfinance prices,
+given 32 predictors derived from GDELT news sentiment and yfinance prices,
 predict whether each Magnificent-7 stock's next-day return will be positive
 (`direction_t1 = 1`) or not (`direction_t1 = 0`).
 

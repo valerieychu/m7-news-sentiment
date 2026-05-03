@@ -85,22 +85,11 @@ def _read_and_split():
 
 
 def _to_arrays(subset):
-    """Convert a split DataFrame to (X, y, feature_names) — UNSCALED.
+    """Convert a split DataFrame to (X, y, feature_names) — UNSCALED."""
 
-    Ticker is excluded as a raw string column (via FORBIDDEN_COLS) and
-    re-introduced as 7 one-hot indicator columns. The M7 ticker list is
-    fixed, so column order is deterministic across all splits.
-    """
     y = subset["direction_t1"].astype(np.int64).to_numpy()
 
-    # One-hot encode ticker against the fixed M7 list.
-    ticker_cat = pd.Categorical(subset["ticker"], categories=list(TICKERS))
-    ticker_dummies = pd.get_dummies(ticker_cat, prefix="ticker").astype(np.int64)
-    ticker_dummies.index = subset.index
-
-    # Drop all forbidden columns (raw ticker included), then concat the dummies.
     X_df = subset.drop(columns=FORBIDDEN_COLS)
-    X_df = pd.concat([X_df, ticker_dummies], axis=1)
 
     X = X_df.to_numpy(dtype=np.float64)
     return X, y, list(X_df.columns)
