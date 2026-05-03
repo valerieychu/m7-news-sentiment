@@ -85,9 +85,23 @@ def _read_and_split():
 
 
 def _to_arrays(subset):
-    """Convert a split DataFrame to (X, y, feature_names) — UNSCALED."""
+    """Convert a split DataFrame to (X, y, feature_names) — UNSCALED.
+
+    Ticker is excluded as a raw string column (via FORBIDDEN_COLS) and
+    re-introduced as 7 one-hot indicator columns. The M7 ticker list is
+    fixed, so column order is deterministic across all splits.
+    """
     y = subset["direction_t1"].astype(np.int64).to_numpy()
+
+    # One-hot encode ticker against the fixed M7 list.
+    ticker_cat = pd.Categorical(subset["ticker"], categories=list(TICKERS))
+    ticker_dummies = pd.get_dummies(ticker_cat, prefix="ticker").astype(np.int64)
+    ticker_dummies.index = subset.index
+
+    # Drop all forbidden columns (raw ticker included), then concat the dummies.
     X_df = subset.drop(columns=FORBIDDEN_COLS)
+    X_df = pd.concat([X_df, ticker_dummies], axis=1)
+
     X = X_df.to_numpy(dtype=np.float64)
     return X, y, list(X_df.columns)
 
@@ -125,14 +139,30 @@ def load_data():
 def load_test():
     """Load the LOCKED test set. Only call at the very end of the project.
 
-    Emits a RuntimeWarning so every test-set access is visible in the
-    notebook / stdout.  The search phase should NEVER call this.
+    Two layers of protection:
+
+    1. **Env-var gate (hard lock).** Raises RuntimeError unless the
+       environment variable ``UNLOCK_TEST_SET=final_eval`` is set. This
+       means accidental calls during the search phase crash immediately
+       instead of silently evaluating on held-out data.
+    2. **RuntimeWarning (visible trail).** Once unlocked, still emits a
+       warning so every legitimate test-set access is logged to stdout.
+
+    Intended invocation (exactly once, at the end of the project)::
+
+        UNLOCK_TEST_SET=final_eval python final_eval.py
 
     Returns
     -------
     X_test, y_test : np.ndarray
         Raw (UNSCALED) test features and labels.
     """
+    if os.environ.get("UNLOCK_TEST_SET") != "final_eval":
+        raise RuntimeError(
+            "load_test() is LOCKED during the search phase. "
+            "Set the environment variable UNLOCK_TEST_SET=final_eval only "
+            "when running final_eval.py at the end of the project."
+        )
     warnings.warn(
         "load_test() called — the test set should only be accessed at the "
         "final evaluation, never during the search phase.",

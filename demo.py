@@ -119,7 +119,7 @@ def main():
           f"down={1 - y_val.mean():.4f}")
     print("=" * 70 + "\n")
 
-    best_f1 = -float("inf")  # higher is better (opposite of housing's RMSE)
+    best_f1 = -float("inf")  # higher is better 
 
     for it in ITERATIONS:
         exp_id = it["id"]
