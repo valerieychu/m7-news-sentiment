@@ -1,5 +1,5 @@
 """
-Week 3 — Controlled Experiment Set for News Sentiment → Stock Direction
+Week 4 — Controlled Experiment Set for News Sentiment → Stock Direction
 =======================================================================
 
 Runs 8 controlled experiments on top of the frozen baseline, holding split,
@@ -334,7 +334,7 @@ ax1.axhline(baseline_f1 + 0.02, ls=":", color="#27ae60", lw=1.0, alpha=0.7,
 
 ax1.set_ylabel("Validation Macro F1", fontsize=12)
 ax1.set_title("Controlled Experiment Set — Metric Over Time\n"
-              "News Sentiment → Tech Stock Direction (Week 3)",
+              "News Sentiment → Tech Stock Direction (Week 4)",
               fontsize=13, fontweight="bold")
 ax1.legend(loc="lower right", fontsize=9)
 ax1.grid(True, alpha=0.3)
