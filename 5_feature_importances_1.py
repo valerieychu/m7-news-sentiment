@@ -22,7 +22,7 @@ importances = forest.feature_importances_
 fi = (pd.Series(importances, index=feature_names)
         .sort_values(ascending=False))
 print(fi)
-fi.to_csv("feature_importance_results_1.csv")
+fi.to_csv("5_feature_importance_results_1.csv")
 
 # 5. Plot
 fi.plot(kind="barh", figsize=(8, 10))
@@ -30,5 +30,5 @@ plt.gca().invert_yaxis()
 plt.title("ExtraTrees feature importances (week 8)")
 plt.xlabel("Importance")
 plt.tight_layout()
-plt.savefig("feature_importance_bar_1.png", dpi=150)
-print("Saved feature_importance_bar_1.png")
+plt.savefig("5_feature_importance_bar_1.png", dpi=150)
+print("Saved 5_feature_importance_bar_1.png")

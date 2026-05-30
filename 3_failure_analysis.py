@@ -2,7 +2,7 @@
 Failure Mode Analysis for News Sentiment → Stock Direction
 ==========================================================
 Run from the m7-news-sentiment-copy directory:
-    python failure_mode_analysis.py
+    python 3_failure_analysis.py
 
 Sections
 --------
@@ -172,7 +172,7 @@ disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Down/Flat", 
 disp.plot(ax=ax, colorbar=False)
 ax.set_title("Confusion Matrix — Validation Set")
 plt.tight_layout()
-save_cm = os.path.join(os.path.dirname(os.path.abspath(__file__)), "confusion_matrix.png")
+save_cm = os.path.join(os.path.dirname(os.path.abspath(__file__)), "3_confusion_matrix.png")
 plt.savefig(save_cm, dpi=150, bbox_inches="tight")
 print(f"\nConfusion matrix saved → {save_cm}\n")
 plt.close()
@@ -219,7 +219,7 @@ try:
     ax.set_title("Confidence Distribution: Correct vs. Wrong Predictions")
     ax.legend()
     plt.tight_layout()
-    save_conf = os.path.join(os.path.dirname(os.path.abspath(__file__)), "confidence_hist.png")
+    save_conf = os.path.join(os.path.dirname(os.path.abspath(__file__)), "3_confidence_hist.png")
     plt.savefig(save_conf, dpi=150, bbox_inches="tight")
     print(f"Confidence histogram saved → {save_conf}\n")
     plt.close()

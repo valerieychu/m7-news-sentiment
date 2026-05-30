@@ -20,8 +20,8 @@ Method
                          avg_activity_density
        earnings        – earnings_week
 4. Print ranked tables and save two figures:
-       feature_importance_bar_2.png  – all features, both importance methods
-       sentiment_importance_2.png    – sentiment features zoomed in, with
+       5_feature_importance_bar_2.png  – all features, both importance methods
+       5_sentiment_importance_2.png    – sentiment features zoomed in, with
                                      overall-tone benchmark line
 """
 
@@ -170,7 +170,7 @@ def main():
         print(beats_perm[["feature","perm","perm_std"]].to_string(index=False))
 
     # ── 7. Figure A — all features bar chart (MDI + Perm side-by-side) ────
-    print("\nSaving feature_importance_bar_2.png …")
+    print("\nSaving 5_feature_importance_bar_2.png …")
     top_n = 20
     top_feats_mdi = df_mdi.head(top_n)
 
@@ -209,12 +209,12 @@ def main():
                fontsize=9, frameon=True, title="Feature bucket",
                bbox_to_anchor=(0.5, -0.02))
     plt.tight_layout(rect=[0, 0.04, 1, 1])
-    fig.savefig("feature_importance_bar_2.png", dpi=150, bbox_inches="tight")
+    fig.savefig("5_feature_importance_bar_2.png", dpi=150, bbox_inches="tight")
     plt.close(fig)
     print("  Saved.")
 
     # ── 8. Figure B — sentiment features zoomed in ────────────────────────
-    print("Saving sentiment_importance_2.png …")
+    print("Saving 5_sentiment_importance_2.png …")
     sent_cols = OVERALL_TONE + SENTIMENT_DIMS
     df_sent = df[df["feature"].isin(sent_cols)].copy()
     df_sent_perm = df_sent.sort_values("perm", ascending=False).reset_index(drop=True)
@@ -262,9 +262,9 @@ def main():
 
     # ── 9. Save numeric results to CSV ─────────────────────────────────────
     df.sort_values("perm", ascending=False).to_csv(
-        "feature_importance_results_2.csv", index=False
+        "5_feature_importance_results_2.csv", index=False
     )
-    print("  feature_importance_results_2.csv saved.")
+    print("  5_feature_importance_results_2.csv saved.")
 
     # ── 10. Return key numbers for the summary ─────────────────────────────
     return {

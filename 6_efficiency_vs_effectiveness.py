@@ -56,5 +56,5 @@ ax.legend(handles=[
 ], loc="lower right")
 
 plt.tight_layout()
-plt.savefig("efficiency_vs_effectiveness.png", dpi=150, bbox_inches="tight")
-print("Saved efficiency_vs_effectiveness.png")
+plt.savefig("6_efficiency_vs_effectiveness.png", dpi=150, bbox_inches="tight")
+print("Saved 6_efficiency_vs_effectiveness.png")

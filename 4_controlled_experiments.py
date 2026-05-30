@@ -15,7 +15,7 @@ Outputs (written to outputs/):
     - metric_over_time.png     : val macro F1 + accuracy across experiments
 
 Run:
-    python outputs/controlled_experiments.py
+    python outputs/4_controlled_experiments.py
 """
 from __future__ import annotations
 import os

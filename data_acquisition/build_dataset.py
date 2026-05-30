@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 
 # ── Load raw files ────────────────────────────────────────────────────────────
-prices   = pd.read_csv('stock_prices.csv',   parse_dates=['date'])
-sentiment = pd.read_csv('gdelt_sentiment.csv', parse_dates=['article_date'])
+prices   = pd.read_csv('data_acquisition/stock_prices.csv',   parse_dates=['date'])
+sentiment = pd.read_csv('data_acquisition/gdelt_sentiment.csv', parse_dates=['article_date'])
 
 prices['date']            = pd.to_datetime(prices['date']).dt.normalize()
 sentiment['article_date'] = pd.to_datetime(sentiment['article_date']).dt.normalize()
@@ -20,8 +20,18 @@ df = prices.merge(sentiment, on=['ticker', 'date'], how='left')
 print(f"After join: {len(df)} rows")
 print(f"Dates missing sentiment: {df['article_count'].isna().sum()} rows")
 
-# Fill missing sentiment rows with 0 (no news = neutral signal)
-# Only fill numeric sentiment columns, not identifiers
+# Missing sentiment handling.
+# Previously every NaN row was filled with 0, which conflates "no GDELT data
+# pulled" with "GDELT returned a real neutral signal". The GDELT 2.0 feed had
+# a confirmed outage covering 2025-06-16 → 2025-07-01 (10 trading days × 7
+# tickers = 70 rows) and the Apr 13, 2026 boundary day, so we treat missing
+# rows in two coordinated ways:
+#
+#   1. `gdelt_missing` — binary indicator computed BEFORE imputation, so the
+#      model can split on "is this row real or filled?".
+#   2. Forward-fill within each ticker (limit=3 trading days). Short outages
+#      get carried over from the last real sentiment; longer outages stay
+#      mostly zero (but flagged).
 sentiment_cols = [
     'article_count', 'unique_source_count', 'total_word_count',
     'tone_weighted', 'tone_positive_weighted', 'tone_negative_weighted',
@@ -30,10 +40,22 @@ sentiment_cols = [
     'positive_article_count', 'negative_article_count', 'neutral_article_count',
     'avg_activity_density'
 ]
+
+# Indicator BEFORE any imputation
+df['gdelt_missing'] = df['article_count'].isna().astype(int)
+
+# ── Sort for lag computation (and forward-fill) ──────────────────────────────
+df = df.sort_values(['ticker', 'date']).reset_index(drop=True)
+
+# Forward-fill within each ticker, then zero-fill whatever's still NaN
+df[sentiment_cols] = (
+    df.groupby('ticker', group_keys=False)[sentiment_cols]
+      .apply(lambda g: g.ffill(limit=3))
+)
 df[sentiment_cols] = df[sentiment_cols].fillna(0)
 
-# ── Sort for lag computation ──────────────────────────────────────────────────
-df = df.sort_values(['ticker', 'date']).reset_index(drop=True)
+print(f"  gdelt_missing rows (post-ffill, still imputed-as-zero): "
+      f"{int(((df['gdelt_missing'] == 1) & (df['article_count'] == 0)).sum())}")
 
 # ── Compute next-day direction label (the target variable) ───────────────────
 df['close_next'] = df.groupby('ticker')['close'].shift(-1)
@@ -110,6 +132,7 @@ final_cols = [
 
     # Calendar features
     'earnings_week',
+    'gdelt_missing',
 
     # Target variables
     'direction_t1', 'direction_t2', 'direction_t3',
@@ -119,7 +142,7 @@ final_cols = [
 df = df[[c for c in final_cols if c in df.columns]]
 
 # ── Save ──────────────────────────────────────────────────────────────────────
-df.to_csv('dataset.csv', index=False)
+df.to_csv('data_acquisition/dataset.csv', index=False)
 
 print(f"\n✓ Saved dataset.csv")
 print(f"  Shape: {df.shape}")
