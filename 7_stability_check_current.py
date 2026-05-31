@@ -1,4 +1,5 @@
-# stability_check.py
+# 7_stability_check.py
+# on current model.py
 import numpy as np
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.pipeline import Pipeline
