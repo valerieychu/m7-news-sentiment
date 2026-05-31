@@ -1,0 +1,15 @@
+python 7_stability_check_price_only.py
+PRICE-only: kept 9 of 33 features
+seed=0: f1=0.5807
+seed=1: f1=0.5807
+seed=2: f1=0.5903
+seed=3: f1=0.5701
+seed=4: f1=0.5763
+seed=5: f1=0.5841
+seed=6: f1=0.5763
+seed=7: f1=0.5798
+seed=8: f1=0.5701
+seed=9: f1=0.5807
+
+PRICE-only: mean=0.5789, std=0.0058
+ALL-features (for comparison): mean=0.5591, std=0.0064

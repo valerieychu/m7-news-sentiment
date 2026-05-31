@@ -1,0 +1,4 @@
+python 7_calibrated_extratrees.py
+Method                           mean F1     std
+Calibrated (isotonic ) ExtraTrees       0.4294  0.0105
+Calibrated (sigmoid  ) ExtraTrees       0.3450  0.0134

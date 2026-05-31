@@ -1,0 +1,13 @@
+python 7_per_ticker_models.py
+Ticker     n_train   n_val   pooled_f1   per_ticker_f1
+----------------------------------------------------------------------
+AAPL           250      30           -          0.6296
+MSFT           250      30           -          0.4949
+GOOGL          250      30           -          0.5623
+AMZN           250      30           -          0.4505
+NVDA           250      30           -          0.5764
+META           250      30           -          0.6411
+TSLA           250      30           -          0.5694
+
+Per-ticker ensemble (concat preds): F1=0.5752  acc=0.5857
+For comparison, pooled (one model on all tickers) F1 ≈ 0.559 ± 0.006
