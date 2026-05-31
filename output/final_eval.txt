@@ -1,0 +1,30 @@
+Loaded test set: 266 rows, 33 features
+Refitting on combined train + val: 1960 rows
+
+============================================================
+FINAL TEST-SET RESULTS
+============================================================
+  Macro F1:      0.3428
+  Accuracy:      0.4699
+  Recall (pos):  0.0278
+  Confusion matrix:
+[[121   1]
+ [140   4]]
+
+Per-ticker test F1:
+  Ticker      n   up_rate     acc      f1
+  AAPL       38     0.526   0.500   0.375
+  MSFT       38     0.421   0.579   0.367
+  GOOGL      38     0.474   0.526   0.345
+  AMZN       38     0.632   0.395   0.315
+  NVDA       38     0.605   0.395   0.283
+  META       38     0.605   0.421   0.330
+  TSLA       38     0.526   0.474   0.360
+
+Saved predictions to output/final_test_predictions.csv
+
+Reference (search-phase val F1, for the report):
+  Current model.py (10-seed mean):  0.559 ± 0.006
+  PRICE-only ablation (10-seed):    0.579 ± 0.006
+  Logistic baseline (single seed):  0.483
+  Null baseline (DummyClassifier):  0.307
