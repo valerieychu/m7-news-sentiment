@@ -1,0 +1,24 @@
+python 7_top_models.py
+
+=== Tuning ExtraTrees ===
+Fitting 3 folds for each of 72 candidates, totalling 216 fits
+  best params:   {'max_depth': 8, 'max_features': 'sqrt', 'min_samples_leaf': 5, 'n_estimators': 200}
+  best CV F1:    0.5115
+  actual val F1: 0.5862
+  CV–val gap:    -0.0747
+
+=== Tuning KNN ===
+Fitting 3 folds for each of 24 candidates, totalling 72 fits
+  best params:   {'model__metric': 'manhattan', 'model__n_neighbors': 50, 'model__weights': 'uniform'}
+  best CV F1:    0.5102
+  actual val F1: 0.5714
+  CV–val gap:    -0.0612
+
+=== Tuning RandomForest ===
+Fitting 3 folds for each of 72 candidates, totalling 216 fits
+  best params:   {'max_depth': None, 'max_features': 0.5, 'min_samples_leaf': 10, 'n_estimators': 500}
+  best CV F1:    0.5096
+  actual val F1: 0.5238
+  CV–val gap:    -0.0142
+
+Saved output/tuning_results.csv
